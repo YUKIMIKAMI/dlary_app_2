@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-pastel-gray text-gray-800;
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold;
+  }
+  
+  button {
+    @apply transition-all duration-200 ease-in-out;
+  }
+  
+  textarea, input {
+    @apply transition-all duration-200 ease-in-out;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-pastel-blue hover:bg-blue-300 text-gray-800 font-medium px-6 py-3 rounded-lg shadow-md hover:shadow-lg;
+  }
+  
+  .btn-secondary {
+    @apply bg-pastel-green hover:bg-green-300 text-gray-800 font-medium px-6 py-3 rounded-lg shadow-md hover:shadow-lg;
+  }
+  
+  .btn-danger {
+    @apply bg-pastel-red hover:bg-red-300 text-gray-800 font-medium px-6 py-3 rounded-lg shadow-md hover:shadow-lg;
+  }
+  
+  .card {
+    @apply bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-200;
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pastel-blue focus:border-transparent;
+  }
+  
+  .textarea-field {
+    @apply w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pastel-blue focus:border-transparent resize-none;
+  }
+}
+
+@layer utilities {
+  @keyframes slide-in-right {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+  
+  .animate-slide-in-right {
+    animation: slide-in-right 0.3s ease-out;
+  }
+}
