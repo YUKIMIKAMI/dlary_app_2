@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { APP_CONFIG } from '../config/app.config';
 
 class GeminiService {
   private genAI: GoogleGenerativeAI | null = null;
@@ -32,9 +33,11 @@ class GeminiService {
       }
     }
 
+    const questionCount = APP_CONFIG.AI_QUESTIONS.INITIAL_QUESTION_COUNT;
+    
     try {
       const prompt = `
-あなたは経験豊富な心理カウンセラーです。以下の日記を丁寧に読み、書いた人の内面を深く理解した上で、自己探求を促す質問を3つ生成してください。
+あなたは経験豊富な心理カウンセラーです。以下の日記を丁寧に読み、書いた人の内面を深く理解した上で、自己探求を促す質問を${questionCount}つ生成してください。
 
 【質問作成の指針】
 
@@ -72,7 +75,7 @@ class GeminiService {
 ${diaryContent}
 
 出力形式（JSON配列、各質問は必ず日記の具体的内容に言及し、40-80文字程度にする）:
-["質問1", "質問2", "質問3"]
+${questionCount === 2 ? '["質問1", "質問2"]' : '["質問1", "質問2", "質問3"]'}
 `;
 
       const result = await this.model.generateContent(prompt);
@@ -83,8 +86,8 @@ ${diaryContent}
       const jsonMatch = text.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         const questions = JSON.parse(jsonMatch[0]);
-        if (Array.isArray(questions) && questions.length >= 3) {
-          return questions.slice(0, 3);
+        if (Array.isArray(questions) && questions.length >= questionCount) {
+          return questions.slice(0, questionCount);
         }
       }
       
@@ -97,13 +100,15 @@ ${diaryContent}
   }
 
   async generateFollowUpQuestions(originalQuestion: string, answer: string, diaryContent?: string): Promise<string[]> {
+    const questionCount = APP_CONFIG.AI_QUESTIONS.FOLLOWUP_QUESTION_COUNT;
+    
     if (!this.isInitialized()) {
       return this.getFallbackFollowUpQuestions(originalQuestion, answer);
     }
 
     try {
       const prompt = `
-あなたは深層心理学に精通したカウンセラーです。以下の対話を注意深く分析し、回答者がまだ言語化できていない深層を探るフォローアップ質問を3つ生成してください。
+あなたは深層心理学に精通したカウンセラーです。以下の対話を注意深く分析し、回答者がまだ言語化できていない深層を探るフォローアップ質問を${questionCount}つ生成してください。
 
 【フォローアップ質問作成の指針】
 
@@ -147,7 +152,7 @@ ${diaryContent}
 回答：${answer}
 
 出力形式（JSON配列、各質問は回答の具体的内容を引用した40-80文字の深い質問）:
-["質問1", "質問2", "質問3"]
+${questionCount === 2 ? '["質問1", "質問2"]' : '["質問1", "質問2", "質問3"]'}
 `;
 
       const result = await this.model.generateContent(prompt);
@@ -157,8 +162,8 @@ ${diaryContent}
       const jsonMatch = text.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         const questions = JSON.parse(jsonMatch[0]);
-        if (Array.isArray(questions) && questions.length >= 3) {
-          return questions.slice(0, 3);
+        if (Array.isArray(questions) && questions.length >= questionCount) {
+          return questions.slice(0, questionCount);
         }
       }
       
@@ -215,7 +220,7 @@ ${diaryContent}
     
     questions.push(`今日のあなたが、半年前のあなたと違う点は何でしょうか？その変化をどう感じていますか？`);
     
-    return questions.slice(0, 3);
+    return questions.slice(0, APP_CONFIG.AI_QUESTIONS.INITIAL_QUESTION_COUNT);
   }
 
   private getFallbackFollowUpQuestions(originalQuestion?: string, answer?: string): string[] {
@@ -251,7 +256,7 @@ ${diaryContent}
       );
     }
     
-    return questions.slice(0, 3);
+    return questions.slice(0, APP_CONFIG.AI_QUESTIONS.FOLLOWUP_QUESTION_COUNT);
   }
 
   setApiKey(apiKey: string) {

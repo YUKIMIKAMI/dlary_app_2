@@ -6,9 +6,12 @@ import { useQuestionGenerator } from '../hooks/useQuestionGenerator';
 import { storageService } from '../services/storage';
 import { MindMapView } from '../components/mindmap/MindMapView';
 import { AnswerModal } from '../components/mindmap/AnswerModal';
+import { CommentModal } from '../components/mindmap/CommentModal';
+import { ContextMenu } from '../components/mindmap/ContextMenu';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import type { DiaryEntry, MindMapNode, MindMapEdge } from '../types/diary';
+import { APP_CONFIG } from '../config/app.config';
 
 export const MindMapPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -28,6 +31,13 @@ export const MindMapPage: React.FC = () => {
   const [questionsGenerated, setQuestionsGenerated] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState<MindMapNode | null>(null);
   const [isAnswerModalOpen, setIsAnswerModalOpen] = useState(false);
+  const [selectedNodeForComment, setSelectedNodeForComment] = useState<MindMapNode | null>(null);
+  const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{
+    isOpen: boolean;
+    position: { x: number; y: number };
+    nodeId: string | null;
+  }>({ isOpen: false, position: { x: 0, y: 0 }, nodeId: null });
 
   useEffect(() => {
     if (!id) {
@@ -129,6 +139,62 @@ export const MindMapPage: React.FC = () => {
     }
   };
 
+  const handleNodeRightClick = (nodeId: string, position: { x: number; y: number }) => {
+    setContextMenu({
+      isOpen: true,
+      position,
+      nodeId,
+    });
+  };
+
+  const handleContextMenuAction = (action: string) => {
+    if (action === 'addComment' && contextMenu.nodeId) {
+      const node = currentNodes.find(n => n.id === contextMenu.nodeId);
+      if (node) {
+        setSelectedNodeForComment(node);
+        setIsCommentModalOpen(true);
+      }
+    }
+    setContextMenu({ isOpen: false, position: { x: 0, y: 0 }, nodeId: null });
+  };
+
+  const handleCommentSubmit = async (comment: string) => {
+    if (!selectedNodeForComment || !displayEntry) return;
+
+    // コメントノードを作成
+    const commentNode: MindMapNode = {
+      id: `comment-${Date.now()}`,
+      type: 'comment',
+      content: comment,
+      position: {
+        x: selectedNodeForComment.position.x + APP_CONFIG.AI_QUESTIONS.NODE_HORIZONTAL_SPACING,
+        y: selectedNodeForComment.position.y + 80,
+      },
+      parentId: selectedNodeForComment.id,
+      targetNodeId: selectedNodeForComment.id,
+      createdAt: new Date(),
+      commentDate: new Date(),
+    };
+
+    // エッジを作成
+    const commentEdge: MindMapEdge = {
+      id: `edge-${selectedNodeForComment.id}-to-${commentNode.id}`,
+      source: selectedNodeForComment.id,
+      target: commentNode.id,
+    };
+
+    // ノードとエッジを追加
+    const updatedNodes = [...currentNodes, commentNode];
+    const updatedEdges = [...currentEdges, commentEdge];
+    
+    setNodes(updatedNodes);
+    setEdges(updatedEdges);
+    updateDiaryMindMap(displayEntry.id, updatedNodes, updatedEdges);
+
+    setIsCommentModalOpen(false);
+    setSelectedNodeForComment(null);
+  };
+
   const handleAnswerSubmit = async (answer: string) => {
     if (!selectedQuestion || !displayEntry) return;
 
@@ -138,7 +204,7 @@ export const MindMapPage: React.FC = () => {
       type: 'answer',
       content: answer,
       position: {
-        x: selectedQuestion.position.x + 300,
+        x: selectedQuestion.position.x + APP_CONFIG.AI_QUESTIONS.NODE_HORIZONTAL_SPACING,
         y: selectedQuestion.position.y,
       },
       parentId: selectedQuestion.id,
@@ -170,14 +236,16 @@ export const MindMapPage: React.FC = () => {
       if (followUpQuestions.length > 0) {
         // フォローアップ質問を縦に配置（重ならないように）
         const newQuestionNodes: MindMapNode[] = followUpQuestions.map((q, index) => {
-          const ySpacing = 150; // ノード間の垂直間隔を増やす
-          const startY = answerNode.position.y - ySpacing; // 中央から上下に配置
+          const ySpacing = APP_CONFIG.AI_QUESTIONS.FOLLOWUP_NODE_VERTICAL_SPACING;
+          // 質問を中央に配置するための計算
+          const totalHeight = (followUpQuestions.length - 1) * ySpacing;
+          const startY = answerNode.position.y - (totalHeight / 2);
           return {
             id: `question-${Date.now()}-${index}`,
             type: 'question' as const,
             content: q,
             position: {
-              x: answerNode.position.x + 300, // 回答ノードの右側
+              x: answerNode.position.x + APP_CONFIG.AI_QUESTIONS.NODE_HORIZONTAL_SPACING, // 回答ノードの右側
               y: startY + (index * ySpacing),
             },
             parentId: answerNode.id,
@@ -244,6 +312,7 @@ export const MindMapPage: React.FC = () => {
             nodes={currentNodes}
             edges={currentEdges}
             onNodeClick={handleNodeClick}
+            onNodeRightClick={handleNodeRightClick}
             onNodesChange={handleNodesChange}
           />
         </div>
@@ -255,7 +324,7 @@ export const MindMapPage: React.FC = () => {
             <li>🖱️ ドラッグ: ノードを移動</li>
             <li>📜 スクロール: ズームイン/アウト</li>
             <li>❓ 質問ノードをクリック: 回答を入力</li>
-            <li>💬 右クリック: コメントを追加（実装予定）</li>
+            <li>💬 右クリック: コメントを追加</li>
           </ul>
         </div>
 
@@ -268,6 +337,38 @@ export const MindMapPage: React.FC = () => {
             setSelectedQuestion(null);
           }}
           onSubmit={handleAnswerSubmit}
+        />
+
+        {/* コメントモーダル */}
+        <CommentModal
+          isOpen={isCommentModalOpen}
+          targetNodeContent={selectedNodeForComment?.content || ''}
+          onClose={() => {
+            setIsCommentModalOpen(false);
+            setSelectedNodeForComment(null);
+          }}
+          onSubmit={handleCommentSubmit}
+        />
+
+        {/* コンテキストメニュー */}
+        <ContextMenu
+          isOpen={contextMenu.isOpen}
+          position={contextMenu.position}
+          items={[
+            {
+              label: 'コメントを追加',
+              icon: '💬',
+              action: 'addComment',
+            },
+            {
+              label: 'ノードを削除',
+              icon: '🗑️',
+              action: 'deleteNode',
+              disabled: true,
+            },
+          ]}
+          onClose={() => setContextMenu({ isOpen: false, position: { x: 0, y: 0 }, nodeId: null })}
+          onItemClick={handleContextMenuAction}
         />
 
         {/* デバッグ情報（開発中のみ） */}

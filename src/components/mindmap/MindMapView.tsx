@@ -4,7 +4,6 @@ import ReactFlow, {
   Edge,
   Background,
   Controls,
-  MiniMap,
   useNodesState,
   useEdgesState,
   addEdge,
@@ -18,6 +17,7 @@ import 'reactflow/dist/style.css';
 import { DiaryNode } from './DiaryNode';
 import { QuestionNode } from './QuestionNode';
 import { AnswerNode } from './AnswerNode';
+import { CommentNode } from './CommentNode';
 import type { MindMapNode, MindMapEdge } from '../../types/diary';
 
 interface MindMapViewProps {
@@ -25,6 +25,7 @@ interface MindMapViewProps {
   nodes: MindMapNode[];
   edges: MindMapEdge[];
   onNodeClick?: (nodeId: string) => void;
+  onNodeRightClick?: (nodeId: string, position: { x: number; y: number }) => void;
   onNodesChange?: (nodes: MindMapNode[]) => void;
 }
 
@@ -32,6 +33,7 @@ const nodeTypes: NodeTypes = {
   diary: DiaryNode,
   question: QuestionNode,
   answer: AnswerNode,
+  comment: CommentNode,
 };
 
 const MindMapViewContent: React.FC<MindMapViewProps> = ({
@@ -39,6 +41,7 @@ const MindMapViewContent: React.FC<MindMapViewProps> = ({
   nodes: initialNodes,
   edges: initialEdges,
   onNodeClick,
+  onNodeRightClick,
   onNodesChange,
 }) => {
   const { fitView } = useReactFlow();
@@ -48,6 +51,7 @@ const MindMapViewContent: React.FC<MindMapViewProps> = ({
       let nodeType = 'diary';
       if (node.type === 'question') nodeType = 'question';
       if (node.type === 'answer') nodeType = 'answer';
+      if (node.type === 'comment') nodeType = 'comment';
       if (node.type === 'main') nodeType = 'diary';
 
       return {
@@ -57,6 +61,7 @@ const MindMapViewContent: React.FC<MindMapViewProps> = ({
         data: {
           label: node.content,
           type: node.type,
+          commentDate: node.commentDate,
         },
       };
     });
@@ -111,6 +116,13 @@ const MindMapViewContent: React.FC<MindMapViewProps> = ({
     }
   }, [onNodeClick]);
 
+  const handleNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
+    event.preventDefault();
+    if (onNodeRightClick) {
+      onNodeRightClick(node.id, { x: event.clientX, y: event.clientY });
+    }
+  }, [onNodeRightClick]);
+
   return (
     <div className="w-full h-[600px] bg-pastel-gray rounded-lg overflow-auto">
       <ReactFlow
@@ -120,6 +132,7 @@ const MindMapViewContent: React.FC<MindMapViewProps> = ({
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={handleNodeClick}
+        onNodeContextMenu={handleNodeContextMenu}
         nodeTypes={nodeTypes}
         fitView
         fitViewOptions={{
@@ -135,21 +148,6 @@ const MindMapViewContent: React.FC<MindMapViewProps> = ({
       >
         <Background color="#E5E5E5" gap={16} />
         <Controls className="bg-white border-2 border-pastel-blue rounded-lg" />
-        <MiniMap 
-          className="bg-white border-2 border-pastel-blue rounded-lg"
-          nodeColor={(node) => {
-            switch (node.data?.type) {
-              case 'main':
-                return '#FFF9C4'; // パステルイエロー
-              case 'question':
-                return '#C8E6C9'; // パステルグリーン
-              case 'answer':
-                return '#B3E5FC'; // パステルスカイブルー
-              default:
-                return '#E0E0E0';
-            }
-          }}
-        />
       </ReactFlow>
     </div>
   );

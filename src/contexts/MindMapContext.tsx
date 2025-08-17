@@ -2,6 +2,7 @@
 import React, { createContext, useState, useCallback, ReactNode } from 'react';
 import type { MindMapNode, MindMapEdge, DiaryEntry } from '../types/diary';
 import { storageService } from '../services/storage';
+import { APP_CONFIG } from '../config/app.config';
 
 interface MindMapContextType {
   currentNodes: MindMapNode[];
@@ -46,25 +47,31 @@ export const MindMapProvider: React.FC<{ children: ReactNode }> = ({ children })
   }, []);
 
   const initializeMindMap = useCallback((diaryContent: string) => {
+    const { MINDMAP, AI_QUESTIONS } = APP_CONFIG;
+    
     // メインノードの作成（左側に配置）
     const mainNode: MindMapNode = {
       id: 'main',
       type: 'main',
       content: diaryContent.slice(0, 150) + (diaryContent.length > 150 ? '...' : ''),
-      position: { x: 50, y: 250 },
+      position: MINDMAP.MAIN_NODE_POSITION,
       createdAt: new Date(),
     };
 
-    // 質問ノードのプレースホルダー作成（3つ、縦に均等配置）
-    const questionNodes: MindMapNode[] = Array.from({ length: 3 }, (_, index) => {
-      const ySpacing = 200; // ノード間の垂直間隔を増やす
-      const startY = 250 - ySpacing; // 中央から上下に配置
+    // 質問ノードのプレースホルダー作成（設定に基づいた数）
+    const questionCount = AI_QUESTIONS.INITIAL_QUESTION_COUNT;
+    const questionNodes: MindMapNode[] = Array.from({ length: questionCount }, (_, index) => {
+      const ySpacing = AI_QUESTIONS.NODE_VERTICAL_SPACING;
+      // 質問を中央に配置するための計算
+      const totalHeight = (questionCount - 1) * ySpacing;
+      const startY = MINDMAP.MAIN_NODE_POSITION.y - (totalHeight / 2);
+      
       return {
         id: `question-${index + 1}`,
         type: 'question' as const,
         content: 'Loading...',
         position: {
-          x: 500, // メインノードから右に450px
+          x: MINDMAP.QUESTION_NODE_X,
           y: startY + (index * ySpacing),
         },
         parentId: 'main',

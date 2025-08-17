@@ -18,7 +18,8 @@ export type MindMapNode = {
   position: { x: number; y: number };
   parentId?: string;
   createdAt: Date;
-  commentDate?: Date;
+  commentDate?: Date;     // コメント追加日（コメントノードのみ）
+  targetNodeId?: string;  // コメント対象のノードID（コメントノードのみ）
 }
 
 export type MindMapEdge = {
